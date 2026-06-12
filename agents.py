@@ -3,15 +3,17 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from tools import web_search , scrape_url 
-from langchain_groq import ChatGroq
 from dotenv import load_dotenv
+import os
 
 load_dotenv()
 
 #model setup 
-llm = ChatGroq(
-    model="llama-3.3-70b-versatile",
-    temperature=0
+from langchain_google_genai import ChatGoogleGenerativeAI
+
+llm = ChatGoogleGenerativeAI(
+    model="gemini-2.5-flash",
+    google_api_key=os.getenv("GEMINI_API_KEY")
 )
 
 
