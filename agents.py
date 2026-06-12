@@ -1,40 +1,28 @@
-from langchain.agents import create_agent
-from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from tools import web_search , scrape_url 
+from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv
 import os
 
+from tools import web_search, scrape_url
+
 load_dotenv()
 
-#model setup 
-from langchain_google_genai import ChatGoogleGenerativeAI
-
+# ---------------- MODEL ----------------
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
     google_api_key=os.getenv("GEMINI_API_KEY")
 )
 
-
-#1st agent 
+# ---------------- SEARCH AGENT ----------------
 def build_search_agent():
-    return create_agent(
-        model = llm,
-        tools= [web_search]
-    )
+    return web_search
 
-#2nd agent 
-
+# ---------------- READER AGENT ----------------
 def build_reader_agent():
-    return create_agent(
-        model = llm,
-        tools = [scrape_url]
-    )
+    return scrape_url
 
-
-#writer chain 
-
+# ---------------- WRITER ----------------
 writer_prompt = ChatPromptTemplate.from_messages([
     (
         "system",
@@ -42,29 +30,60 @@ writer_prompt = ChatPromptTemplate.from_messages([
 You are an expert research writer.
 
 IMPORTANT:
-- Use ONLY the provided research.
-- Preserve all URLs exactly as provided.
-- Never remove source links.
-- Include all URLs under a Sources section.
-- If URLs exist, do NOT say "No URLs were found".
-- Write a detailed, factual and professional report.
+- Use ONLY provided research
+- Preserve ALL URLs exactly
+- Never remove sources
+- Always include Sources section with URLs
 """
     ),
     (
         "human",
         """
-Write a detailed research report on the topic below.
+Write a detailed research report.
 
 Topic: {topic}
 
-Research Gathered:
+Research:
 {research}
 
-Structure the report as:
+Format:
 - Introduction
-- Key Findings (minimum 3 well-explained points)
+- Key Findings
 - Conclusion
-- Sources (list all URLs found in the research)
+- Sources (ALL URLs)
 """
     ),
 ])
+
+writer_chain = writer_prompt | llm | StrOutputParser()
+
+# ---------------- CRITIC ----------------
+critic_prompt = ChatPromptTemplate.from_messages([
+    (
+        "system",
+        "You are a strict research critic. Be honest and precise."
+    ),
+    (
+        "human",
+        """
+Evaluate this report:
+
+{report}
+
+Return:
+
+Score: X/10
+
+Strengths:
+- ...
+
+Areas to Improve:
+- ...
+
+Verdict:
+...
+"""
+    ),
+])
+
+critic_chain = critic_prompt | llm | StrOutputParser()
